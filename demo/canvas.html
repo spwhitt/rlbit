@@ -1,0 +1,195 @@
+<html>
+<head>
+<style>
+canvas {
+    border: 1px solid black;
+}
+</style>
+</head>
+<body>
+
+<div>
+    <button id="circle">Circle</button>
+    <button id="square">Square</button>
+    <button id="diamond">Diamond</button>
+    <button id="line">Line</button>
+</div>
+
+<div>
+    <button id="replace">Replace</button>
+    <button id="union">Union</button>
+    <button id="subtract">Subtract</button>
+</div>
+
+<div>
+    <button id="invert">Invert</button>
+    <button id="clear">clear</button>
+</div>
+
+<canvas id="demo"></canvas>
+
+<div id="data"></div>
+
+<script src="../lib/rlbit.js"></script>
+
+<script>
+
+var appState = {
+    // Segments to display
+    data : [],
+
+    // Functions to notify of changes in data
+    changeListeners : [],
+
+    // circleStamp, squareStamp, diamondStamp
+    stampTool : 'circleStamp',
+
+    // replace, union, subtract
+    integrationMode : 'replace',
+
+    // Has drag been started on canvas?
+    dragging : false,
+};
+
+var rli = rlImage(300,300);
+var data = [];
+var changeListeners = [];
+
+var circleTool = function(x, y) {
+    return rli.mkCircle(x, y, 10);
+};
+
+var squareTool = function(x, y) {
+    return rli.mkSquare(x, y, 10, 10);
+};
+
+var prevClick = [0, 0];
+var lineTool = function(x, y) {
+    var line = rli.stupidLine(prevClick[0], prevClick[1], x, y, 10);
+    prevClick = [x, y];
+    return line;
+};
+
+var stampTool = circleTool;
+
+var integration = "replace";
+
+var showData = function() {
+    document.getElementById("data").innerHTML =
+        "Number of pixels: " + 300 * 300 + "<br>" +
+        "Number of segments: " + data.length + "<br>" +
+        "<pre>"+JSON.stringify(data, null, 1)+"</pre>";
+
+    checkData();
+};
+
+var checkData = function() {
+    var errors = rl.verify(data);
+    for (i in errors) {
+        console.log(errors[i].message, errors[i].segment);
+    }
+};
+
+document.getElementById("circle").onclick = function() {
+    stampTool = circleTool;
+};
+
+document.getElementById("square").onclick = function() {
+    stampTool = squareTool;
+};
+
+document.getElementById("line").onclick = function() {
+    stampTool = lineTool;
+};
+
+document.getElementById("invert").onclick = function() {
+    data = rl.invert(data, 300*300);
+    // showData();
+    for (i in changeListeners) {
+        changeListeners[i]();
+    }
+};
+
+document.getElementById("clear").onclick = function() {
+    data = [];
+    // showData();
+    for (i in changeListeners) {
+        changeListeners[i]();
+    }
+};
+
+document.getElementById("replace").onclick = function() {
+    integration = "replace";
+};
+
+document.getElementById("union").onclick = function() {
+    integration = "union";
+};
+
+document.getElementById("subtract").onclick = function() {
+    integration = "subtract";
+};
+
+var demo = document.getElementById("demo");
+
+function getMousePos(canvas, evt) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+        x: Math.round(evt.clientX - rect.left),
+        y: Math.round(evt.clientY - rect.top)
+    };
+};
+
+var dragging = false;
+
+demo.onmousedown = function() {
+    dragging = true;
+};
+
+demo.onmouseup = function() {
+    dragging = false;
+};
+
+demo.onmousemove = function(e) {
+    var pos = getMousePos(this, e);
+    if (dragging) {
+        var shape = stampTool(pos.x, pos.y);
+        if (integration == "replace") {
+            data = shape;
+        } else if (integration == "union") {
+            data = rl.union(data, shape);
+        } else if (integration == "subtract") {
+            data = rl.subtract(data, shape);
+        }
+
+        // showData();
+        for (i in changeListeners) {
+            changeListeners[i]();
+        }
+    }
+};
+
+var ctx = demo.getContext("2d");
+var render = function() {
+    ctx.clearRect(0, 0, 300, 300);
+    var imdata = ctx.getImageData(0,0,300,300);
+
+    var idata = imdata.data;
+
+    rl.each(data, function(i) {
+        i = Math.round(i);
+        idata[i*4+0] = 255;
+        // idata[i*4+1] = 0;
+        // idata[i*4+2] = 0;
+        idata[i*4+3] = 255;
+    });
+
+    ctx.putImageData(imdata, 0, 0);
+};
+
+changeListeners.push(function() { window.requestAnimationFrame(render) } );
+changeListeners.push(showData);
+
+</script>
+</body>
+</html>
