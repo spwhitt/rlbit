@@ -17,7 +17,7 @@ list. This property allows the algorithms to be somewhat efficient!
 Supported Operations:
 
 | Operation | Complexity |
-| -- | -- |
+| --- | --- |
 | **Or / Union**            | O(n) |
 | **Subtract / Difference** | O(n) |
 | **Intersect**             | O(n) |
